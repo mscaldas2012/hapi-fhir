@@ -1,5 +1,8 @@
 package ca.uhn.fhir.jpa.demo.elasticsearch;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.Driver;
 import java.util.Properties;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
@@ -11,11 +14,12 @@ import ca.uhn.fhir.jpa.util.SubscriptionsRequireManualActivationInterceptorDstu3
 import ca.uhn.fhir.rest.server.interceptor.IServerInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.ResponseHighlighterInterceptor;
 import org.apache.commons.dbcp2.BasicDataSource;
-import org.hibernate.jpa.HibernatePersistenceProvider;
 import org.hibernate.search.elasticsearch.cfg.ElasticsearchEnvironment;
 import org.springframework.beans.factory.annotation.Autowire;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
@@ -25,8 +29,18 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
  */
 @Configuration
 @EnableTransactionManagement()
+@PropertySource("classpath:db.properties")
 public class FhirServerConfig extends BaseJavaConfigDstu3 {
-
+	@Value("${database.hibernate.dialect}")
+	private String db_dialect ;//= "ca.uhn.fhir.jpa.util.DerbyTenSevenHapiFhirDialect";
+	@Value("${database.driverClassName}")
+	private String db_className; // = "org.apache.derby.jdbc.EmbeddedDriver";
+	@Value("${database.url}")
+	private String db_URL ; //= "jdbc:derby:directory:target/jpaserver_derby_files;create=true";
+	@Value("${database.username}")
+	private String db_username ;//= "";
+	@Value("${database.password}")
+	private String db_password ; //= "";
 	/**
 	 * Configure FHIR properties around the the JPA server via this bean
 	 */
@@ -44,12 +58,16 @@ public class FhirServerConfig extends BaseJavaConfigDstu3 {
 	 * A URL to a remote database could also be placed here, along with login credentials and other properties supported by BasicDataSource.
 	 */
 	@Bean(destroyMethod = "close")
-	public DataSource dataSource() {
+	public DataSource dataSource() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
 		BasicDataSource retVal = new BasicDataSource();
-		retVal.setDriver(new org.apache.derby.jdbc.EmbeddedDriver());
-		retVal.setUrl("jdbc:derby:directory:target/jpaserver_derby_files;create=true");
-		retVal.setUsername("");
-		retVal.setPassword("");
+		Class<?> clazz = Class.forName(db_className);
+		Constructor<?> ctor = clazz.getConstructor();
+		Object object = ctor.newInstance();
+
+		retVal.setDriver((Driver) object);
+		retVal.setUrl(db_URL);
+		retVal.setUsername(db_username);
+		retVal.setPassword(db_password);
 		return retVal;
 	}
 
@@ -58,14 +76,23 @@ public class FhirServerConfig extends BaseJavaConfigDstu3 {
 	public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
 		LocalContainerEntityManagerFactoryBean retVal = super.entityManagerFactory();
 		retVal.setPersistenceUnitName("HAPI_PU");
-		retVal.setDataSource(dataSource());
-		retVal.setJpaProperties(jpaProperties());
+		try {
+			retVal.setDataSource(dataSource());
+			retVal.setJpaProperties(jpaProperties());
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Unable to load Properties: " + e.getMessage());
+		} catch (NoSuchMethodException |InstantiationException | IllegalAccessException | InvocationTargetException e) {
+			e.printStackTrace();
+			throw new RuntimeException("Unable to load Driver: " + e.getMessage());
+		}
 		return retVal;
 	}
 
-	private Properties jpaProperties() {
+	private Properties jpaProperties() throws ClassNotFoundException {
 		Properties extraProperties = new Properties();
-		extraProperties.put("hibernate.dialect", ca.uhn.fhir.jpa.util.DerbyTenSevenHapiFhirDialect.class.getName());
+		Class<?> act = Class.forName(db_dialect);
+		extraProperties.put("hibernate.dialect", act.getName());
 		extraProperties.put("hibernate.format_sql", "true");
 		extraProperties.put("hibernate.show_sql", "false");
 		extraProperties.put("hibernate.hbm2ddl.auto", "update");

@@ -1,21 +1,5 @@
 package ca.uhn.fhir.jpa.demo;
 
-import java.util.Properties;
-
-import javax.persistence.EntityManagerFactory;
-import javax.sql.DataSource;
-
-import ca.uhn.fhir.jpa.search.LuceneSearchMappingFactory;
-import ca.uhn.fhir.jpa.util.DerbyTenSevenHapiFhirDialect;
-import org.apache.commons.dbcp2.BasicDataSource;
-import org.apache.commons.lang3.time.DateUtils;
-import org.hibernate.jpa.HibernatePersistenceProvider;
-import org.springframework.beans.factory.annotation.Autowire;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.orm.jpa.JpaTransactionManager;
-import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
-import org.springframework.transaction.annotation.EnableTransactionManagement;
 
 import ca.uhn.fhir.jpa.config.BaseJavaConfigDstu3;
 import ca.uhn.fhir.jpa.dao.DaoConfig;
@@ -23,15 +7,69 @@ import ca.uhn.fhir.jpa.util.SubscriptionsRequireManualActivationInterceptorDstu3
 import ca.uhn.fhir.rest.server.interceptor.IServerInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.LoggingInterceptor;
 import ca.uhn.fhir.rest.server.interceptor.ResponseHighlighterInterceptor;
+import org.apache.commons.dbcp2.BasicDataSource;
+import org.springframework.beans.factory.annotation.Autowire;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.orm.jpa.JpaTransactionManager;
+import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
+import org.springframework.transaction.annotation.EnableTransactionManagement;
+
+import javax.persistence.EntityManagerFactory;
+import javax.sql.DataSource;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
+import java.sql.Driver;
+import java.util.Properties;
 
 /**
  * This is the primary configuration file for the example server
  */
 @Configuration
 @EnableTransactionManagement()
+@PropertySource("classpath:db.properties")
 public class FhirServerConfig extends BaseJavaConfigDstu3 {
 
-	/**
+
+    @Value("${database.hibernate.dialect}")
+    private String db_dialect ;//= "ca.uhn.fhir.jpa.util.DerbyTenSevenHapiFhirDialect";
+    @Value("${database.driverClassName}")
+    private String db_className; // = "org.apache.derby.jdbc.EmbeddedDriver";
+    @Value("${database.url}")
+    private String db_URL ; //= "jdbc:derby:directory:target/jpaserver_derby_files;create=true";
+    @Value("${database.username}")
+    private String db_username ;//= "";
+    @Value("${database.password}")
+    private String db_password ; //= "";
+
+    @Value("${hibernate.format_sql}")
+    private String hibernate_format_sql;
+    @Value("${hibernate.show_sql}")
+    private String hibernate_show_sql;
+    @Value("${hibernate.hbm2ddl.auto}")
+    private String hibernate_hbm2ddl_auto;
+    @Value("${hibernate.jdbc.batch_size}")
+    private String hibernate_jdbc_batch_size;
+    @Value("${hibernate.cache.use_query_cache}")
+    private String hibernate_cache_use_query_cache;
+    @Value("${hibernate.cache.use_second_level_cache}")
+    private String hibernate_cache_use_second_level_cache;
+    @Value("${hibernate.cache.use_structured_entries}")
+    private String hibernate_cache_use_structured_entries;
+    @Value("${hibernate.cache.use_minimal_puts}")
+    private String hibernate_cache_use_minimal_puts;
+    @Value("${hibernate.search.model_mapping}")
+    private String hibernate_search_model_mapping;
+    @Value("${hibernate.search.default.directory_provider}")
+    private String hibernate_search_default_directory_provider;
+    @Value("${hibernate.search.default.indexBase}")
+    private String hibernate_search_default_indexBase;
+    @Value("${hibernate.search.lucene_version}")
+    private String hibernate_search_lucene_version;
+
+    /**
 	 * Configure FHIR properties around the the JPA server via this bean
 	 */
 	@Bean()
@@ -48,12 +86,17 @@ public class FhirServerConfig extends BaseJavaConfigDstu3 {
 	 * A URL to a remote database could also be placed here, along with login credentials and other properties supported by BasicDataSource.
 	 */
 	@Bean(destroyMethod = "close")
-	public DataSource dataSource() {
+	public DataSource dataSource() throws ClassNotFoundException, NoSuchMethodException, IllegalAccessException, InvocationTargetException, InstantiationException {
 		BasicDataSource retVal = new BasicDataSource();
-		retVal.setDriver(new org.apache.derby.jdbc.EmbeddedDriver());
-		retVal.setUrl("jdbc:derby:directory:target/jpaserver_derby_files;create=true");
-		retVal.setUsername("");
-		retVal.setPassword("");
+
+        Class<?> clazz = Class.forName(db_className);
+        Constructor<?> ctor = clazz.getConstructor();
+        Object object = ctor.newInstance();
+
+        retVal.setDriver((Driver) object);
+		retVal.setUrl(db_URL);
+		retVal.setUsername(db_username);
+		retVal.setPassword(db_password);
 		return retVal;
 	}
 
@@ -62,27 +105,40 @@ public class FhirServerConfig extends BaseJavaConfigDstu3 {
 	public LocalContainerEntityManagerFactoryBean entityManagerFactory() {
 		LocalContainerEntityManagerFactoryBean retVal = super.entityManagerFactory();
 		retVal.setPersistenceUnitName("HAPI_PU");
-		retVal.setDataSource(dataSource());
-		retVal.setJpaProperties(jpaProperties());
-		return retVal;
+        try {
+            retVal.setDataSource(dataSource());
+            retVal.setJpaProperties(jpaProperties());
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Unable to load Properties: " + e.getMessage());
+        } catch (NoSuchMethodException |InstantiationException | IllegalAccessException | InvocationTargetException e) {
+            e.printStackTrace();
+            throw new RuntimeException("Unable to load Driver: " + e.getMessage());
+        }
+        return retVal;
 	}
 
-	private Properties jpaProperties() {
+	private Properties jpaProperties() throws ClassNotFoundException {
 		Properties extraProperties = new Properties();
-		extraProperties.put("hibernate.dialect", DerbyTenSevenHapiFhirDialect.class.getName());
-		extraProperties.put("hibernate.format_sql", "true");
-		extraProperties.put("hibernate.show_sql", "false");
-		extraProperties.put("hibernate.hbm2ddl.auto", "update");
-		extraProperties.put("hibernate.jdbc.batch_size", "20");
-		extraProperties.put("hibernate.cache.use_query_cache", "false");
-		extraProperties.put("hibernate.cache.use_second_level_cache", "false");
-		extraProperties.put("hibernate.cache.use_structured_entries", "false");
-		extraProperties.put("hibernate.cache.use_minimal_puts", "false");
-		extraProperties.put("hibernate.search.model_mapping", LuceneSearchMappingFactory.class.getName());
-		extraProperties.put("hibernate.search.default.directory_provider", "filesystem");
-		extraProperties.put("hibernate.search.default.indexBase", "target/lucenefiles");
-		extraProperties.put("hibernate.search.lucene_version", "LUCENE_CURRENT");
-//		extraProperties.put("hibernate.search.default.worker.execution", "async");
+
+        Class<?> dialect = Class.forName(db_dialect);
+        extraProperties.put("hibernate.dialect", dialect.getName());
+        extraProperties.put("hibernate.format_sql", hibernate_format_sql);
+		extraProperties.put("hibernate.show_sql", hibernate_show_sql);
+		extraProperties.put("hibernate.hbm2ddl.auto", hibernate_hbm2ddl_auto);
+		extraProperties.put("hibernate.jdbc.batch_size", hibernate_jdbc_batch_size);
+		extraProperties.put("hibernate.cache.use_query_cache", hibernate_cache_use_query_cache);
+		extraProperties.put("hibernate.cache.use_second_level_cache", hibernate_cache_use_second_level_cache);
+		extraProperties.put("hibernate.cache.use_structured_entries", hibernate_cache_use_structured_entries);
+		extraProperties.put("hibernate.cache.use_minimal_puts", hibernate_cache_use_minimal_puts);
+
+        Class<?> modelMapping = Class.forName(hibernate_search_model_mapping);
+		extraProperties.put("hibernate.search.model_mapping", modelMapping.getName());
+
+		extraProperties.put("hibernate.search.default.directory_provider", hibernate_search_default_directory_provider);
+		extraProperties.put("hibernate.search.default.indexBase", hibernate_search_default_indexBase);
+		extraProperties.put("hibernate.search.lucene_version", hibernate_search_lucene_version);
+		extraProperties.put("hibernate.search.default.worker.execution", "async");
 		return extraProperties;
 	}
 
