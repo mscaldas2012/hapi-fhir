@@ -39,6 +39,12 @@ public class JpaServerDemo extends RestfulServer {
 
 	private WebApplicationContext myAppCtx;
 
+	public JpaServerDemo() {
+		super();
+		String serverBaseUrl = "http://eip-fhir.experimental.aimsplatform.com/hapi-fhir/";
+		setServerAddressStrategy(new HardcodedServerAddressStrategy(serverBaseUrl));
+	}
+
 	@SuppressWarnings("unchecked")
 	@Override
 	protected void initialize() throws ServletException {
