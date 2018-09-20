@@ -40,11 +40,7 @@
 			<artifactId>websocket-client</artifactId>
 			<version>${jetty_version}</version>
 		</dependency>
-		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>6.0.5</version>
-		</dependency>
+
 		<!--
 		<dependency>
 			<groupId>org.aspectj</groupId>
@@ -142,30 +138,30 @@
 
 		<!-- This example uses Derby embedded database. If you are using another database such as Mysql or Oracle, you may omit the following dependencies and replace them with an appropriate database client 
 			dependency for your database platform. -->
-		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>6.0.5</version>
-		</dependency>
-		<!-- https://mvnrepository.com/artifact/postgresql/postgresql -->
+		<!--<dependency>-->
+			<!--<groupId>mysql</groupId>-->
+			<!--<artifactId>mysql-connector-java</artifactId>-->
+			<!--<version>6.0.5</version>-->
+		<!--</dependency>-->
+		<!-- https://mvnrepository.com/artifact/org.postgresql/postgresql -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<version>9.3-1100-jdbc41</version>
+			<version>42.2.5</version>
 		</dependency>
 
-		<dependency>
-			<groupId>org.apache.derby</groupId>
-			<artifactId>derby</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.derby</groupId>
-			<artifactId>derbynet</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.derby</groupId>
-			<artifactId>derbyclient</artifactId>
-		</dependency>
+		<!--<dependency>-->
+			<!--<groupId>org.apache.derby</groupId>-->
+			<!--<artifactId>derby</artifactId>-->
+		<!--</dependency>-->
+		<!--<dependency>-->
+			<!--<groupId>org.apache.derby</groupId>-->
+			<!--<artifactId>derbynet</artifactId>-->
+		<!--</dependency>-->
+		<!--<dependency>-->
+			<!--<groupId>org.apache.derby</groupId>-->
+			<!--<artifactId>derbyclient</artifactId>-->
+		<!--</dependency>-->
 
 		<!-- The following dependencies are only needed for automated unit tests, you do not neccesarily need them to run the example. -->
 		<dependency>
@@ -233,7 +229,7 @@
 					<artifactId>jetty-maven-plugin</artifactId>
 					<configuration>
 						<webApp>
-							<contextPath>/hapi-fhir-jpaserver-example</contextPath>
+							<contextPath>/hapi-fhir</contextPath>
 							<allowDuplicateFragmentNames>true</allowDuplicateFragmentNames>
 						</webApp>
 					</configuration>

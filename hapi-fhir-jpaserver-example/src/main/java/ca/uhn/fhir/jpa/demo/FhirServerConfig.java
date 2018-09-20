@@ -34,15 +34,15 @@ public class FhirServerConfig extends BaseJavaConfigDstu3 {
 
 
     @Value("${database.hibernate.dialect}")
-    private String db_dialect ;//= "ca.uhn.fhir.jpa.util.DerbyTenSevenHapiFhirDialect";
+    private String db_dialect ;
     @Value("${database.driverClassName}")
-    private String db_className; // = "org.apache.derby.jdbc.EmbeddedDriver";
+    private String db_className;
     @Value("${database.url}")
-    private String db_URL ; //= "jdbc:derby:directory:target/jpaserver_derby_files;create=true";
+    private String db_URL ;
     @Value("${database.username}")
-    private String db_username ;//= "";
+    private String db_username ;
     @Value("${database.password}")
-    private String db_password ; //= "";
+    private String db_password ;
 
     @Value("${hibernate.format_sql}")
     private String hibernate_format_sql;
